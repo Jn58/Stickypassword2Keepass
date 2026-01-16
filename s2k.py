@@ -38,7 +38,7 @@ def xml2csv(file: str = "default.xml"):
         Comma-separated login information string for KeePass.
     """
 
-    tree: ET.ElementTree = ET.parse(file)
+    tree: ET.ElementTree[ET.Element[str]] = ET.parse(file)
 
     database: ET.Element | None = tree.find("Database")
     assert isinstance(database, ET.Element)
@@ -57,17 +57,28 @@ def xml2csv(file: str = "default.xml"):
     }
 
     for login in logins:
-        account_login = sourceid_login[login.attrib["ID"]]
-        account = id_account[account_login.attrib["ParentID"]]
-        group = id_group.get(account.attrib["ParentID"], None)
+        account_login = sourceid_login.get(login.attrib.get("ID", ""))
+        if account_login is None:
+            continue
 
-        group = group.attrib["Name"] if group is not None else ""
-        title = account.attrib["Name"]
-        username = login.attrib["Name"]
-        password = login.attrib["Password"]
-        url = account.attrib["Link"]
-        last_modified = login.attrib["ModifiedDate"]
-        created = login.attrib["CreatedDate"]
+        account = id_account.get(account_login.attrib.get("ParentID", ""))
+        if account is None:
+            continue
+
+        group_elem = id_group.get(account.attrib.get("ParentID", ""))
+
+        group = group_elem.attrib.get("Name") if group_elem is not None else ""
+
+        title = account.attrib.get("Name", "")
+
+        username = login.attrib.get("Name") or login.attrib.get("Username") or ""
+
+        password = login.attrib.get("Password") or login.attrib.get("Pass") or ""
+
+        url = account.attrib.get("Link") or account.attrib.get("URL") or ""
+
+        last_modified = login.attrib.get("ModifiedDate", "")
+        created = login.attrib.get("CreatedDate", "")
 
         yield f"{group},{title},{username},{password},{url},{last_modified},{created}\n"
 
@@ -77,7 +88,7 @@ def main(xml_file, csv_file):
     Convert XML to CSV and write into a CSV file.
     """
     with open(csv_file, "w", encoding="UTF-8") as f:
-        f.write("group,title,username,password,url,last modified,created\n")
+        f.write("group,title,username,password,url,last_modified,created\n")
         f.writelines(xml2csv(xml_file))
 
 
